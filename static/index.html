@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Autonomous Document Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:        #10142A;
+    --ink-deep:   #080A18;
+    --ink-raise:  #171C36;
+    --paper:      #F6F1E4;
+    --paper-line: #E3DBC6;
+    --paper-shadow: rgba(8,10,24,.45);
+    --slate:      #9AA3BD;
+    --slate-dim:  #6b7290;
+    --amber:      #E8A33D;
+    --teal:       #2F9E82;
+    --rust:       #C1554A;
+    --hairline:   rgba(154,163,189,.18);
+    --radius-s: 6px;
+    --radius-m: 12px;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--slate);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{background:var(--amber); color:var(--ink-deep);}
+
+  a{color:inherit;}
+  button{font-family:inherit;}
+
+  :focus-visible{
+    outline:2px solid var(--amber);
+    outline-offset:3px;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px clamp(20px,4vw,56px);
+    border-bottom:1px solid var(--hairline);
+  }
+  .topbar__mark{
+    display:flex; align-items:center; gap:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px; letter-spacing:.06em; color:var(--slate);
+  }
+  .topbar__dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--teal);
+    box-shadow:0 0 0 3px rgba(47,158,130,.18);
+  }
+  .topbar__status{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; color:var(--slate-dim);
+    letter-spacing:.04em;
+  }
+  .topbar__right{
+    display:flex; align-items:center; gap:10px;
+  }
+  .topbar__api-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--slate-dim);
+  }
+  .topbar__api-input{
+    background:var(--ink-raise);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius-s);
+    color:#EDEAE0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:6px 10px;
+    width:190px;
+    transition:border-color .2s ease;
+  }
+  .topbar__api-input::placeholder{color:var(--slate-dim);}
+  .topbar__api-input:focus{border-color:var(--amber);}
+  @media (max-width:640px){
+    .topbar{flex-wrap:wrap; gap:10px;}
+    .topbar__api-input{width:140px;}
+  }
+
+  /* ---------- Layout ---------- */
+  .layout{
+    display:grid;
+    grid-template-columns: minmax(360px,480px) 1fr;
+    gap:0;
+    align-items:start;
+  }
+  @media (max-width:960px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  /* ---------- Left: control column ---------- */
+  .control{
+    padding:clamp(28px,5vw,64px) clamp(20px,4vw,56px);
+    border-right:1px solid var(--hairline);
+    position:sticky; top:0;
+    align-self:start;
+    min-height:calc(100vh - 70px);
+  }
+  @media (max-width:960px){
+    .control{position:static; border-right:none; border-bottom:1px solid var(--hairline); min-height:0;}
+  }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--amber);
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:18px;
+  }
+  .eyebrow::before{
+    content:''; width:20px; height:1px; background:var(--amber);
+  }
+
+  h1.hero{
+    font-family:'Fraunces', serif;
+    font-optical-sizing:auto;
+    font-weight:500;
+    font-size:clamp(34px,3.6vw,46px);
+    line-height:1.08;
+    color:#F2EFE6;
+    margin:0 0 18px;
+    letter-spacing:-.01em;
+  }
+  h1.hero em{
+    font-style:italic; color:var(--amber);
+  }
+
+  .hero-sub{
+    font-size:15.5px;
+    line-height:1.65;
+    color:var(--slate);
+    max-width:46ch;
+    margin:0 0 34px;
+  }
+
+  /* pipeline legend */
+  .pipeline{
+    display:flex; flex-wrap:wrap; gap:0;
+    margin:0 0 34px;
+    border:1px solid var(--hairline);
+    border-radius:var(--radius-m);
+    overflow:hidden;
+  }
+  .pipeline__step{
+    flex:1 1 auto;
+    min-width:88px;
+    padding:12px 10px;
+    text-align:center;
+    border-right:1px solid var(--hairline);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--slate-dim);
+    transition:color .3s ease, background .3s ease;
+  }
+  .pipeline__step:last-child{border-right:none;}
+  .pipeline__step b{
+    display:block; font-size:14px; color:var(--slate-dim);
+    font-family:'IBM Plex Mono',monospace; font-weight:600;
+    margin-bottom:3px;
+  }
+  .pipeline__step.is-active{color:var(--amber); background:rgba(232,163,61,.08);}
+  .pipeline__step.is-active b{color:var(--amber);}
+  .pipeline__step.is-done{color:var(--teal);}
+  .pipeline__step.is-done b{color:var(--teal);}
+
+  /* form */
+  .field-label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--slate-dim);
+    margin-bottom:10px;
+  }
+  textarea{
+    width:100%;
+    resize:vertical;
+    min-height:110px;
+    background:var(--ink-raise);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius-s);
+    color:#EDEAE0;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14.5px;
+    line-height:1.6;
+    padding:14px 16px;
+    transition:border-color .2s ease;
+  }
+  textarea::placeholder{color:var(--slate-dim);}
+  textarea:focus{border-color:var(--amber);}
+
+  .run-row{
+    display:flex; align-items:center; gap:14px;
+    margin-top:16px;
+  }
+  .btn-run{
+    appearance:none; border:none; cursor:pointer;
+    background:var(--amber);
+    color:var(--ink-deep);
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600; font-size:13px; letter-spacing:.04em;
+    padding:13px 22px;
+    border-radius:var(--radius-s);
+    transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
+    display:flex; align-items:center; gap:9px;
+  }
+  .btn-run:hover:not(:disabled){transform:translateY(-1px); box-shadow:0 6px 20px rgba(232,163,61,.28);}
+  .btn-run:disabled{background:var(--ink-raise); color:var(--slate-dim); cursor:progress;}
+  .btn-run__arrow{transition:transform .2s ease;}
+  .btn-run:hover:not(:disabled) .btn-run__arrow{transform:translateX(3px);}
+
+  .example-hint{
+    font-size:12.5px; color:var(--slate-dim);
+  }
+  .example-hint button{
+    background:none; border:none; color:var(--slate);
+    text-decoration:underline; text-decoration-color:var(--hairline);
+    cursor:pointer; padding:0; font-size:12.5px;
+  }
+  .example-hint button:hover{color:var(--amber);}
+
+  /* trace console */
+  .console{
+    margin-top:38px;
+    border:1px solid var(--hairline);
+    border-radius:var(--radius-m);
+    background:var(--ink-deep);
+    overflow:hidden;
+  }
+  .console__bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 16px;
+    border-bottom:1px solid var(--hairline);
+  }
+  .console__title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--slate-dim);
+  }
+  .console__body{
+    padding:16px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    line-height:2;
+    min-height:64px;
+    max-height:260px;
+    overflow-y:auto;
+  }
+  .console__empty{color:var(--slate-dim); font-style:normal;}
+  .log-line{
+    display:flex; gap:10px; align-items:flex-start;
+    opacity:0; transform:translateY(4px);
+    animation:logIn .35s ease forwards;
+  }
+  @keyframes logIn{ to{opacity:1; transform:none;} }
+  .log-line .tag{
+    flex-shrink:0; width:16px; text-align:center;
+  }
+  .log-line.ok .tag{color:var(--teal);}
+  .log-line.active .tag{color:var(--amber);}
+  .log-line.err .tag{color:var(--rust);}
+  .log-line .txt{color:#C9CFE0;}
+  .log-line.err .txt{color:var(--rust);}
+
+  /* ---------- Right: document column ---------- */
+  .docwrap{
+    padding:clamp(28px,5vw,64px) clamp(20px,4vw,56px);
+    min-height:100vh;
+    display:flex; flex-direction:column;
+  }
+
+  .doc-empty{
+    margin:auto;
+    max-width:420px;
+    text-align:center;
+    color:var(--slate-dim);
+  }
+  .doc-empty .glyph{
+    font-family:'Fraunces', serif;
+    font-size:56px; color:var(--hairline);
+    margin-bottom:18px; line-height:1;
+  }
+  .doc-empty h2{
+    font-family:'Fraunces', serif; font-weight:500;
+    color:var(--slate); font-size:19px; margin:0 0 8px;
+  }
+  .doc-empty p{font-size:13.5px; line-height:1.6; margin:0;}
+
+  .paper{
+    background:var(--paper);
+    color:#2B2A24;
+    border-radius:var(--radius-m);
+    box-shadow: 0 30px 60px -20px var(--paper-shadow);
+    padding:clamp(28px,4vw,56px);
+    max-width:760px;
+    margin:0 auto;
+    display:none;
+  }
+  .paper.is-visible{display:block;}
+
+  .paper__meta{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:#8b8672;
+    border-bottom:1px solid var(--paper-line);
+    padding-bottom:14px; margin-bottom:22px;
+  }
+  .paper__title{
+    font-family:'Fraunces', serif; font-weight:500;
+    font-size:clamp(26px,3vw,34px);
+    color:#20201a;
+    margin:0 0 6px;
+    line-height:1.15;
+  }
+  .paper__audience{
+    font-size:13px; color:#79765f; margin:0 0 8px;
+  }
+
+  .assumptions{
+    margin:22px 0 30px;
+    padding:16px 18px;
+    background:rgba(43,42,36,.045);
+    border-left:2px solid var(--amber);
+    border-radius:0 var(--radius-s) var(--radius-s) 0;
+  }
+  .assumptions__label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:#8b8672; margin:0 0 8px;
+  }
+  .assumptions ul{margin:0; padding-left:18px; font-size:13px; line-height:1.7; color:#4a4838;}
+
+  .section{
+    padding:20px 0;
+    border-top:1px solid var(--paper-line);
+    opacity:0; transform:translateY(6px);
+    animation:sectionIn .5s ease forwards;
+  }
+  .section:first-of-type{border-top:none;}
+  @keyframes sectionIn{ to{opacity:1; transform:none;} }
+  .section__head{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:10px;
+  }
+  .section__tab{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 7px; border-radius:4px;
+    color:#fff;
+  }
+  .section__tab.analysis{background:#6b7290;}
+  .section__tab.planning{background:#8B6F3F;}
+  .section__tab.writer{background:#2F9E82;}
+  .section__tab.reviewer{background:#C1554A;}
+  .section__name{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; color:#8b8672; letter-spacing:.02em;
+  }
+  .section__body{
+    font-size:14.5px; line-height:1.75; color:#2B2A24;
+  }
+  .section__body h2{
+    font-family:'Fraunces', serif; font-weight:500;
+    font-size:18px; margin:0 0 10px; color:#20201a;
+  }
+  .section__body p{margin:0 0 12px;}
+  .section__body ul,.section__body ol{margin:0 0 12px; padding-left:20px;}
+  .section__body li{margin-bottom:5px;}
+
+  .paper__footer{
+    margin-top:30px; padding-top:20px;
+    border-top:1px solid var(--paper-line);
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    flex-wrap:wrap;
+  }
+  .paper__filename{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; color:#79765f; word-break:break-all;
+  }
+  .btn-download{
+    appearance:none; text-decoration:none; cursor:pointer;
+    background:#20201a; color:#F6F1E4;
+    border:none; border-radius:var(--radius-s);
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600; font-size:12.5px; letter-spacing:.04em;
+    padding:11px 20px;
+    display:inline-flex; align-items:center; gap:8px;
+    transition:transform .15s ease;
+  }
+  .btn-download:hover{transform:translateY(-1px);}
+
+  .error-box{
+    max-width:760px; margin:0 auto;
+    border:1px solid rgba(193,85,74,.4);
+    background:rgba(193,85,74,.08);
+    border-radius:var(--radius-m);
+    padding:20px 24px;
+    display:none;
+  }
+  .error-box.is-visible{display:block;}
+  .error-box__title{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--rust); font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+    margin:0 0 8px;
+  }
+  .error-box__body{color:#E8B9B4; font-size:13.5px; line-height:1.6; margin:0;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001s !important; transition-duration:.001s !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar__mark">
+    <span class="topbar__dot"></span>
+    Autonomous Document Agent
+  </div>
+  <div class="topbar__right">
+    <label class="topbar__api-label" for="apiBaseInput">API base</label>
+    <input class="topbar__api-input" id="apiBaseInput" type="text" spellcheck="false" placeholder="http://localhost:8000">
+    <div class="topbar__status" id="apiStatus">idle</div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- LEFT: control column -->
+  <div class="control">
+    <div class="eyebrow">Plans before it writes</div>
+    <h1 class="hero">Tell it what<br>you need. <em>Watch it think.</em></h1>
+    <p class="hero-sub">
+      Describe a document in plain language. The agent analyzes the request,
+      identifies what's missing, plans an execution sequence, drafts each
+      section, reviews the whole, and hands you a finished Word file.
+    </p>
+
+    <div class="pipeline" id="pipeline">
+      <div class="pipeline__step" data-stage="validate"><b>01</b>Validate</div>
+      <div class="pipeline__step" data-stage="plan"><b>02</b>Plan</div>
+      <div class="pipeline__step" data-stage="reflect"><b>03</b>Reflect</div>
+      <div class="pipeline__step" data-stage="execute"><b>04</b>Draft</div>
+      <div class="pipeline__step" data-stage="generate"><b>05</b>Generate</div>
+    </div>
+
+    <label class="field-label" for="requestInput">Your request</label>
+    <textarea id="requestInput" placeholder="e.g. Write a project proposal for an AI-powered resume analyzer aimed at hiring managers, including timeline and pricing."></textarea>
+
+    <div class="run-row">
+      <button class="btn-run" id="runBtn">
+        <span id="runBtnLabel">Run agent</span>
+        <span class="btn-run__arrow">→</span>
+      </button>
+      <span class="example-hint">or <button id="fillExample">try an example</button></span>
+    </div>
+
+    <div class="console">
+      <div class="console__bar">
+        <span class="console__title">Execution trace</span>
+      </div>
+      <div class="console__body" id="consoleBody">
+        <span class="console__empty">Waiting for a request.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: document column -->
+  <div class="docwrap">
+
+    <div class="doc-empty" id="docEmpty">
+      <div class="glyph">§</div>
+      <h2>Nothing drafted yet</h2>
+      <p>Once the agent runs, each section will appear here as it's written, on its own page.</p>
+    </div>
+
+    <div class="error-box" id="errorBox">
+      <p class="error-box__title">Agent run failed</p>
+      <p class="error-box__body" id="errorBody"></p>
+    </div>
+
+    <div class="paper" id="paper">
+      <div class="paper__meta">
+        <span id="docType">Document</span>
+        <span id="docStatus">Draft</span>
+      </div>
+      <h1 class="paper__title" id="docTopic">Untitled</h1>
+      <p class="paper__audience" id="docAudience"></p>
+
+      <div class="assumptions" id="assumptionsBox">
+        <p class="assumptions__label">Assumptions made</p>
+        <ul id="assumptionsList"></ul>
+      </div>
+
+      <div id="sectionsHost"></div>
+
+      <div class="paper__footer">
+        <span class="paper__filename" id="docFilename"></span>
+        <a class="btn-download" id="downloadBtn" href="#" target="_blank">Download .docx ↓</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // API base is editable in the topbar so you don't need to touch code to point
+  // this at your FastAPI server. Defaults to same-origin when served by FastAPI
+  // itself (e.g. via StaticFiles), or http://localhost:8000 when opened as a
+  // local file (file:// origins can't call fetch() against another origin
+  // without CORS enabled on the server either way).
+  let API_BASE = (window.location.origin && window.location.origin !== 'null')
+    ? window.location.origin
+    : 'http://localhost:8000';
+
+  const els = {
+    apiBaseInput: document.getElementById('apiBaseInput'),
+    input: document.getElementById('requestInput'),
+    runBtn: document.getElementById('runBtn'),
+    runBtnLabel: document.getElementById('runBtnLabel'),
+    fillExample: document.getElementById('fillExample'),
+    console: document.getElementById('consoleBody'),
+    pipeline: document.getElementById('pipeline'),
+    apiStatus: document.getElementById('apiStatus'),
+    docEmpty: document.getElementById('docEmpty'),
+    paper: document.getElementById('paper'),
+    errorBox: document.getElementById('errorBox'),
+    errorBody: document.getElementById('errorBody'),
+    docType: document.getElementById('docType'),
+    docStatus: document.getElementById('docStatus'),
+    docTopic: document.getElementById('docTopic'),
+    docAudience: document.getElementById('docAudience'),
+    assumptionsBox: document.getElementById('assumptionsBox'),
+    assumptionsList: document.getElementById('assumptionsList'),
+    sectionsHost: document.getElementById('sectionsHost'),
+    docFilename: document.getElementById('docFilename'),
+    downloadBtn: document.getElementById('downloadBtn'),
+  };
+
+  const EXAMPLE = "Write a project proposal for an AI-powered resume analyzer aimed at hiring managers, including a technical approach, timeline, and pricing.";
+  els.fillExample.addEventListener('click', () => { els.input.value = EXAMPLE; els.input.focus(); });
+
+  els.apiBaseInput.value = API_BASE;
+  els.apiBaseInput.addEventListener('change', () => {
+    const val = els.apiBaseInput.value.trim().replace(/\/$/, '');
+    API_BASE = val || API_BASE;
+    els.apiBaseInput.value = API_BASE;
+  });
+
+  const STAGES = ['validate','plan','reflect','execute','generate'];
+  let stageTimer = null;
+  let stageIndex = 0;
+
+  function setPipelineStage(i, done){
+    [...els.pipeline.children].forEach((el, idx) => {
+      el.classList.remove('is-active','is-done');
+      if (done && idx <= i) el.classList.add('is-done');
+      else if (!done && idx === i) el.classList.add('is-active');
+      else if (!done && idx < i) el.classList.add('is-done');
+    });
+  }
+
+  function log(text, kind){
+    const line = document.createElement('div');
+    line.className = 'log-line ' + (kind || '');
+    const tag = kind === 'ok' ? '✓' : kind === 'err' ? '✕' : kind === 'active' ? '›' : '·';
+    line.innerHTML = `<span class="tag">${tag}</span><span class="txt"></span>`;
+    line.querySelector('.txt').textContent = text;
+    els.console.appendChild(line);
+    els.console.scrollTop = els.console.scrollHeight;
+  }
+
+  function clearConsole(){
+    els.console.innerHTML = '';
+  }
+
+  function startFakeProgress(){
+    stageIndex = 0;
+    clearConsole();
+    const labels = {
+      validate: 'Validating request…',
+      plan: 'Planning execution tasks…',
+      reflect: 'Reflecting on the plan…',
+      execute: 'Drafting sections…',
+      generate: 'Generating document…'
+    };
+    setPipelineStage(0, false);
+    log(labels[STAGES[0]], 'active');
+    stageTimer = setInterval(() => {
+      if (stageIndex >= STAGES.length - 1) return;
+      stageIndex++;
+      setPipelineStage(stageIndex, false);
+      log(labels[STAGES[stageIndex]], 'active');
+    }, 1100);
+  }
+
+  function stopFakeProgress(){
+    clearInterval(stageTimer);
+  }
+
+  function toolLabel(name){
+    const n = (name||'').toLowerCase();
+    if (n.includes('review')) return 'reviewer';
+    if (n.includes('analy')) return 'analysis';
+    if (n.includes('assumption') || n.includes('constraint')) return 'analysis';
+    if (n.includes('outline') || n.includes('structure') || n.includes('plan')) return 'planning';
+    return 'writer';
+  }
+
+  function renderDocument(data){
+    els.docEmpty.style.display = 'none';
+    els.errorBox.classList.remove('is-visible');
+    els.paper.classList.add('is-visible');
+
+    els.docType.textContent = data.document_type || 'Document';
+    els.docStatus.textContent = data.status || 'Complete';
+    els.docTopic.textContent = (data.document_type || 'Untitled Document');
+    els.docAudience.textContent = '';
+
+    els.sectionsHost.innerHTML = '';
+
+    if (data.assumptions && data.assumptions.length){
+      els.assumptionsBox.style.display = '';
+      els.assumptionsList.innerHTML = '';
+      data.assumptions.forEach(a => {
+        const li = document.createElement('li');
+        li.textContent = a;
+        els.assumptionsList.appendChild(li);
+      });
+    } else {
+      els.assumptionsBox.style.display = 'none';
+    }
+
+    const tasks = (data.tasks || []).filter(t => t.output);
+    tasks.forEach((t, i) => {
+      const tool = t.tool || toolLabel(t.name);
+      const wrap = document.createElement('div');
+      wrap.className = 'section';
+      wrap.style.animationDelay = (i * 90) + 'ms';
+      wrap.innerHTML = `
+        <div class="section__head">
+          <span class="section__tab ${tool}">${tool}</span>
+          <span class="section__name">${escapeHtml(t.name)}</span>
+        </div>
+        <div class="section__body">${mdLiteToHtml(t.output)}</div>
+      `;
+      els.sectionsHost.appendChild(wrap);
+    });
+
+    if (data.document_path){
+      const clean = data.document_path.split(/[\\/]/).pop();
+      els.docFilename.textContent = clean;
+      els.downloadBtn.href = `${API_BASE}/download?path=${encodeURIComponent(data.document_path)}`;
+      els.downloadBtn.style.display = '';
+    } else {
+      els.downloadBtn.style.display = 'none';
+    }
+  }
+
+  function escapeHtml(s){
+    return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Minimal markdown-ish rendering: ## headings, blank-line paragraphs, "* " bullets
+  function mdLiteToHtml(text){
+    const lines = (text || '').split('\n');
+    let html = '';
+    let inList = false;
+    let para = [];
+
+    function flushPara(){
+      if (para.length){
+        html += '<p>' + escapeHtml(para.join(' ')).trim() + '</p>';
+        para = [];
+      }
+    }
+    function closeList(){
+      if (inList){ html += '</ul>'; inList = false; }
+    }
+
+    lines.forEach(raw => {
+      const line = raw.trim();
+      if (!line){ flushPara(); return; }
+      if (line.startsWith('## ')){
+        flushPara(); closeList();
+        html += '<h2>' + escapeHtml(line.replace(/^##\s*/, '')) + '</h2>';
+        return;
+      }
+      if (line.startsWith('* ') || line.startsWith('- ')){
+        flushPara();
+        if (!inList){ html += '<ul>'; inList = true; }
+        html += '<li>' + escapeHtml(line.replace(/^[*-]\s*/, '')) + '</li>';
+        return;
+      }
+      closeList();
+      para.push(line);
+    });
+    flushPara(); closeList();
+    return html;
+  }
+
+  function showError(message){
+    els.docEmpty.style.display = 'none';
+    els.paper.classList.remove('is-visible');
+    els.errorBox.classList.add('is-visible');
+    els.errorBody.textContent = message;
+  }
+
+  async function runAgent(){
+    const requestText = els.input.value.trim();
+    if (requestText.length < 5){
+      els.input.focus();
+      return;
+    }
+
+    els.runBtn.disabled = true;
+    els.runBtnLabel.textContent = 'Working…';
+    els.apiStatus.textContent = 'running';
+    els.errorBox.classList.remove('is-visible');
+    startFakeProgress();
+
+    try {
+      const res = await fetch(`${API_BASE}/agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request: requestText })
+      });
+
+      const data = await res.json();
+
+      stopFakeProgress();
+
+      if (!res.ok){
+        setPipelineStage(0, false);
+        log(data.detail || 'The agent run failed.', 'err');
+        els.apiStatus.textContent = 'error';
+        showError(data.detail || `Request failed with status ${res.status}.`);
+        return;
+      }
+
+      setPipelineStage(STAGES.length - 1, true);
+      log('Request validated', 'ok');
+      log(`${(data.tasks||[]).length} tasks planned and reflected on`, 'ok');
+      log('Sections drafted', 'ok');
+      log('Document generated: ' + (data.document_path ? data.document_path.split(/[\\/]/).pop() : ''), 'ok');
+      els.apiStatus.textContent = 'complete';
+
+      renderDocument(data);
+
+    } catch (err) {
+      stopFakeProgress();
+      setPipelineStage(0, false);
+      log('Could not reach the agent server.', 'err');
+      els.apiStatus.textContent = 'offline';
+      showError(`Could not reach ${API_BASE}. Check that the FastAPI server is running there, and that CORS is enabled if this page isn't served from that same origin.`);
+    } finally {
+      els.runBtn.disabled = false;
+      els.runBtnLabel.textContent = 'Run agent';
+    }
+  }
+
+  els.runBtn.addEventListener('click', runAgent);
+  els.input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) runAgent();
+  });
+</script>
+
+</body>
+</html>
