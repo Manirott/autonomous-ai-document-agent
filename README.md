@@ -242,7 +242,7 @@ POST /agent
 Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/autonomous-ai-document-agent.git
+git clone https://github.com/Manirott/autonomous-ai-document-agent.git
 ```
 
 Navigate into the project
